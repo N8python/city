@@ -1,5 +1,6 @@
 import * as THREE from './three/build/three.module.js';
 import { OrbitControls } from './orbit.js';
+import Emitter from "./emitter.js";
 import { Car } from "./car.js";
 import generateCityData from './city-gen.js';
 import { EffectComposer } from './three/examples/jsm/postprocessing/EffectComposer.js';
@@ -10,6 +11,7 @@ import { FXAAShader } from './three/examples/jsm/shaders/FXAAShader.js';
 import { UnrealBloomPass } from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js';
 const texLoader = new THREE.TextureLoader();
+
 const textures = {
     metalNormal: texLoader.load('./textures/metalnormalmap.jpeg'),
     roadTex: texLoader.load("./textures/roadtexture.png"),
@@ -28,7 +30,8 @@ const textures = {
     glassMetal: texLoader.load("./textures/glassmetalness.png"),
     tire: texLoader.load("./textures/tire.png"),
     tireNormal: texLoader.load("./textures/normaltire.png"),
-    tireMetal: texLoader.load("./textures/tiremetal.png")
+    tireMetal: texLoader.load("./textures/tiremetal.png"),
+    smokeTexture: texLoader.load("./textures/smoke.jpeg")
 }
 const modelLoader = new GLTFLoader();
 
@@ -398,12 +401,21 @@ const TrueAOMat = new THREE.MeshStandardMaterial({
     side: THREE.DoubleSide,
     opacity: 0.4
 });
+const spireMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(1.0, 1.0, 1.0),
+    metalness: 0.6,
+    roughness: 0.25,
+    normalMap: textures.buildingNormal,
+    envMap: textures.envMap,
+    side: THREE.DoubleSide
+});
 const TrueAOGeo = new THREE.PlaneGeometry(1, 1);
 const AOInstances = new THREE.InstancedMesh(TrueAOGeo, TrueAOMat, 500);
 let currAOIdx = 0;
 let buildingGlowers = [];
 const AOSideInstances = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), SideAOMat, cityData.buildings.length * 4);
 let aosideidx = 0;
+let smokestacks = [];
 cityData.buildings.forEach(building => {
     let height = 30 + Math.random() ** 2 * 200;
     const buildingGeo = new THREE.BoxGeometry(building.height * 10, height, building.width * 10);
@@ -513,16 +525,15 @@ cityData.buildings.forEach(building => {
     if (height > 100 && Math.random() < 0.5) {
         let spireHeight = height * (0.2 + Math.random() * 0.2);
         const spireGeometry = new THREE.BoxGeometry(2 + Math.random() * 1, spireHeight, 2 + Math.random() * 1);
-        const spireMaterial = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(1.0, 1.0, 1.0),
-            metalness: 0.6,
-            roughness: 0.25,
-            normalMap: textures.buildingNormal,
-            envMap: textures.envMap
-        });
         const spire = new THREE.Mesh(spireGeometry, spireMaterial);
         spire.position.y = height / 2 + spireHeight / 2 - 5;
         spire.castShadow = true;
+        if (Math.random() < 0.25) {
+            smokestacks.push({
+                position: new THREE.Vector3(buildingMesh.position.x, height + spireHeight, buildingMesh.position.z),
+                direction: new THREE.Vector3((0.1 + 0.1 * Math.random()) * Math.sign(Math.random() - 0.5), 0.05 - 0.1 * Math.random(), (0.1 + 0.1 * Math.random()) * Math.sign(Math.random() - 0.5))
+            });
+        }
         buildingMesh.add(spire);
     }
     /*const AOGeo = new THREE.PlaneGeometry(1, 1);
@@ -581,6 +592,7 @@ cityData.buildings.forEach(building => {
     //buildingMesh.add(instancedAOSide);
     scene.add(buildingMesh);
 });
+console.log(smokestacks);
 scene.add(AOSideInstances);
 let cars = [];
 currAOIdx++;
@@ -621,6 +633,30 @@ for (let i = 0; i < 100; i++) {
     scene.add(testCar.mesh);
 }
 scene.add(AOInstances);
+const smokeMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    transparent: true,
+    alphaMap: textures.smokeTexture,
+    depthTest: true,
+    depthWrite: false,
+});
+/*for (let i = 0; i < smokestacks.length; i++) {
+    const position = smokestacks[i];
+    smokestacks[i] = new Emitter(new THREE.PlaneGeometry(1, 1), smokeMaterial, 2000, {
+        deleteOnSize: 0.001,
+        deleteOnDark: 0.01
+    });
+    smokestacks[i].position.copy(position);
+    scene.add(smokestacks[i]);
+
+}*/
+const smokeEmitter = new Emitter(new THREE.PlaneGeometry(1, 1), smokeMaterial, 2000 * smokestacks.length, {
+    deleteOnSize: 0.001,
+    deleteOnDark: 0.01
+});
+scene.add(smokeEmitter);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.maxDistance = 450;
 controls.enableDamping = true;
@@ -646,9 +682,12 @@ const onMat = new THREE.Matrix4().makeScale(10000, 1, 10000);
 const offMat = new THREE.Matrix4().makeScale(0.0001, 1, 0.0001);
 const windowMat = new THREE.Matrix4();
 const windowScale = new THREE.Vector3();
+let lastUpdate = performance.now();
 
 function animate() {
     requestAnimationFrame(animate);
+    const delta = performance.now() - lastUpdate;
+    lastUpdate = performance.now();
     controls.update();
     material.uniforms.time.value = performance.now() * 0.001;
     material.uniforms.playerPos.value = camera.position;
@@ -695,6 +734,30 @@ function animate() {
         }
         glower.instanceMatrix.needsUpdate = true;
     });
+    smokestacks.forEach(smokestack => {
+        for (let i = 0; i < 3; i++) {
+            const smokeDir = smokestack.direction.clone();
+            const saturation = 0.875 + Math.random() * 0.25;
+            smokeEmitter.emit({
+                position: new THREE.Vector3(0, -5, 0).add(smokestack.position),
+                rotation: new THREE.Vector3(0.0, 0.0, Math.random() * Math.PI * 2),
+                scale: new THREE.Vector3(10.0, 10.0, 10.0),
+                speed: 1,
+                size: 1,
+                color: new THREE.Vector3(saturation, saturation, saturation).multiplyScalar(0.5),
+                //colorDecay: 0.9,
+                velocity: {
+                    position: smokeDir.add(new THREE.Vector3(0.1 - 0.2 * Math.random(), 0.2 + 0.1 * Math.random(), 0.1 - 0.2 * Math.random())).multiplyScalar(1),
+                    rotation: new THREE.Vector3(0.0, 0.0, 0.0),
+                    scale: new THREE.Vector3(0.0, 0.0, 0.0),
+                    speed: 0,
+                    size: -0.004 + -0.004 * Math.random()
+                },
+                billboard: true
+            });
+        }
+    });
+    smokeEmitter.update(delta, camera);
     const sunset = (Math.exp(-Math.pow((cycleWeight - 0.5), 2.0)) - 0.779) * (1.0 / (1.0 - 0.779));
     sunLight.color.setRGB(1.0, 1.0 - sunset, 1.0 - sunset);
     cars.forEach(car => {
