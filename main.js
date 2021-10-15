@@ -359,7 +359,7 @@ const buildingMaterial = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     side: THREE.DoubleSide,
     normalMap: textures.metalNormal,
-    vertexColors: true
+    //vertexColors: true
 });
 let colors = [
     [1.0, 1.0, 1.0],
@@ -409,16 +409,46 @@ const spireMaterial = new THREE.MeshStandardMaterial({
     envMap: textures.envMap,
     side: THREE.DoubleSide
 });
+
 const TrueAOGeo = new THREE.PlaneGeometry(1, 1);
-const AOInstances = new THREE.InstancedMesh(TrueAOGeo, TrueAOMat, 500);
+const AOInstances = new THREE.InstancedMesh(TrueAOGeo, TrueAOMat, (cityData.buildings.length * 2) + 100);
 let currAOIdx = 0;
-let buildingGlowers = [];
 const AOSideInstances = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), SideAOMat, cityData.buildings.length * 4);
 let aosideidx = 0;
 let smokestacks = [];
+const BuildingMeshInstances = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), buildingMaterial, cityData.buildings.length);
+let windowsAmt = 0;
+let spireAmt = 0;
 cityData.buildings.forEach(building => {
-    let height = 30 + Math.random() ** 2 * 200;
-    const buildingGeo = new THREE.BoxGeometry(building.height * 10, height, building.width * 10);
+    building.verticalHeight = 30 + Math.random() ** 2 * 200;
+    let winX = building.height - 1;
+    if (winX < 1) {
+        winX = 0;
+    }
+    let winZ = building.width - 1;
+    if (winZ < 1) {
+        winZ = 0;
+    }
+    let winY = Math.floor(building.verticalHeight / 20);
+    windowsAmt += (winX + 2) * 2 * (winY + 2) + (winZ + 2) * 2 * (winY + 2);
+    building.spire = building.verticalHeight > 100 && Math.random() < 0.5;
+    if (building.spire) {
+        spireAmt++;
+    }
+});
+const blueprintWindow = createWindow({ width: 5, height: 10, normal: textures.windowNormal, alpha: textures.windowAlpha, env: textures.envMap, metal: textures.windowMetal, color: [1.0, 1.0, 1.0] });
+const blueprintWindowGlow = createWindowGlow({ width: 5, height: 10 });
+const windowInstancedGeo = new THREE.InstancedMesh(blueprintWindow.geometry, blueprintWindow.material, windowsAmt);
+const windowInstancedGeoGlow = new THREE.InstancedMesh(blueprintWindowGlow.geometry, blueprintWindowGlow.material, windowsAmt);
+const spireGeometry = new THREE.BoxGeometry(1, 1, 1);
+const instancedSpire = new THREE.InstancedMesh(spireGeometry, spireMaterial, spireAmt);
+let buildingGlowers = [windowInstancedGeoGlow];
+let windowidx = 0;
+let buildingmeshidx = 0;
+let spireidx = 0;
+cityData.buildings.forEach(building => {
+    let height = building.verticalHeight;
+    //const buildingGeo = new THREE.BoxGeometry(building.height * 10, height, building.width * 10);
     const colorList = [];
     let color = colors[Math.floor(Math.random() * colors.length)];
     if (height > 170 && Math.random() < 0.25) {
@@ -428,16 +458,23 @@ cityData.buildings.forEach(building => {
         color = [0.45, 0.37, 0.32];
     }
     let windowColor = windowColors[Math.floor(Math.random() * windowColors.length)];
-    for (let i = 0; i < buildingGeo.attributes.position.count; i++) {
+    /*for (let i = 0; i < buildingGeo.attributes.position.count; i++) {
         colorList.push(color);
-    }
-    buildingGeo.setAttribute('color', new THREE.Float32BufferAttribute(colorList.flat(), 3));
-    const buildingMesh = new THREE.Mesh(buildingGeo, buildingMaterial);
+    }*/
+    const buildingMatrix = new THREE.Matrix4();
+    // buildingGeo.setAttribute('color', new THREE.Float32BufferAttribute(colorList.flat(), 3));
+    //const buildingMesh = new THREE.Mesh(buildingGeo, buildingMaterial);
+    const buildingMesh = new THREE.Object3D();
     buildingMesh.position.x = (building.positionX + building.height * 0.5) * 10;
     buildingMesh.position.z = (building.positionZ + building.width * 0.5) * 10;
     buildingMesh.position.y = height / 2;
     buildingMesh.castShadow = true;
     buildingMesh.receiveShadow = true;
+    buildingMatrix.setPosition((building.positionX + building.height * 0.5) * 10, height / 2, (building.positionZ + building.width * 0.5) * 10);
+    buildingMatrix.multiply(new THREE.Matrix4().makeScale(building.height * 10, height, building.width * 10));
+    BuildingMeshInstances.setMatrixAt(buildingmeshidx, buildingMatrix);
+    BuildingMeshInstances.setColorAt(buildingmeshidx, new THREE.Color(...color));
+    buildingmeshidx++;
     const blueprintWindow = createWindow({ width: 5, height: 10, normal: textures.windowNormal, alpha: textures.windowAlpha, env: textures.envMap, metal: textures.windowMetal, color: new THREE.Color(...windowColor) });
     const blueprintWindowGlow = createWindowGlow({ width: 5, height: 10 });
     let winX = building.height - 1;
@@ -449,38 +486,40 @@ cityData.buildings.forEach(building => {
         winZ = 0;
     }
     let winY = Math.floor(height / 20);
-    const windowInstancedGeo = new THREE.InstancedMesh(blueprintWindow.geometry, blueprintWindow.material, (winX + 2) * 2 * (winY + 2) + (winZ + 2) * 2 * (winY + 2));
-    const windowInstancedGeoGlow = new THREE.InstancedMesh(blueprintWindowGlow.geometry, blueprintWindowGlow.material, (winX + 2) * 2 * (winY + 2) + (winZ + 2) * 2 * (winY + 2));
+    //const windowInstancedGeo = new THREE.InstancedMesh(blueprintWindow.geometry, blueprintWindow.material, (winX + 2) * 2 * (winY + 2) + (winZ + 2) * 2 * (winY + 2));
+    //const windowInstancedGeoGlow = new THREE.InstancedMesh(blueprintWindowGlow.geometry, blueprintWindowGlow.material, (winX + 2) * 2 * (winY + 2) + (winZ + 2) * 2 * (winY + 2));
     let idx = 0;
     for (let x = 0; x <= winX; x++) {
         for (let y = 0; y <= winY; y++) {
             const matrix = new THREE.Matrix4();
             matrix.setPosition(
-                (winX === 0 ? 0.5 : x) * (building.height * 10 / Math.max(winX, 1)) * 0.5 - building.height * 2.5,
-                (y / winY) * (height - 20) - (height * 0.5 - 10),
-                building.width * 5.05
+                (winX === 0 ? 0.5 : x) * (building.height * 10 / Math.max(winX, 1)) * 0.5 - building.height * 2.5 + buildingMesh.position.x,
+                (y / winY) * (height - 20) - (height * 0.5 - 10) + buildingMesh.position.y,
+                building.width * 5.05 + buildingMesh.position.z
             );
             idx++;
-            windowInstancedGeo.setMatrixAt(idx, matrix);
+            windowInstancedGeo.setMatrixAt(windowidx, matrix);
             const matrix2 = new THREE.Matrix4();
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
-            windowInstancedGeoGlow.setMatrixAt(idx, matrix);
+            windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowidx++;
         }
     }
     for (let x = 0; x <= winX; x++) {
         for (let y = 0; y <= winY; y++) {
             const matrix = new THREE.Matrix4();
             matrix.setPosition(
-                (winX === 0 ? 0.5 : x) * (building.height * 10 / Math.max(winX, 1)) * 0.5 - building.height * 2.5,
-                (y / winY) * (height - 20) - (height * 0.5 - 10), -building.width * 5.05
+                (winX === 0 ? 0.5 : x) * (building.height * 10 / Math.max(winX, 1)) * 0.5 - building.height * 2.5 + buildingMesh.position.x,
+                (y / winY) * (height - 20) - (height * 0.5 - 10) + buildingMesh.position.y, -building.width * 5.05 + buildingMesh.position.z
             );
             idx++;
-            windowInstancedGeo.setMatrixAt(idx, matrix);
+            windowInstancedGeo.setMatrixAt(windowidx, matrix);
             const matrix2 = new THREE.Matrix4();
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
-            windowInstancedGeoGlow.setMatrixAt(idx, matrix);
+            windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowidx++;
         }
     }
     for (let z = 0; z <= winZ; z++) {
@@ -488,53 +527,73 @@ cityData.buildings.forEach(building => {
             const matrix = new THREE.Matrix4();
             matrix.makeRotationY(Math.PI / 2);
             matrix.setPosition(
-                building.height * 5.05,
-                (y / winY) * (height - 20) - (height * 0.5 - 10),
-                (winZ === 0 ? 0.5 : z) * (building.width * 10 / Math.max(winZ, 1)) * 0.5 - building.width * 2.5,
+                building.height * 5.05 + buildingMesh.position.x,
+                (y / winY) * (height - 20) - (height * 0.5 - 10) + buildingMesh.position.y,
+                (winZ === 0 ? 0.5 : z) * (building.width * 10 / Math.max(winZ, 1)) * 0.5 - building.width * 2.5 + buildingMesh.position.z,
             );
             idx++;
-            windowInstancedGeo.setMatrixAt(idx, matrix);
+            windowInstancedGeo.setMatrixAt(windowidx, matrix);
             const matrix2 = new THREE.Matrix4();
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
-            windowInstancedGeoGlow.setMatrixAt(idx, matrix);
+            windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowidx++;
         }
     }
     for (let z = 0; z <= winZ; z++) {
         for (let y = 0; y <= winY; y++) {
             const matrix = new THREE.Matrix4();
             matrix.makeRotationY(Math.PI / 2);
-            matrix.setPosition(-building.height * 5.05,
-                (y / winY) * (height - 20) - (height * 0.5 - 10),
-                (winZ === 0 ? 0.5 : z) * (building.width * 10 / Math.max(winZ, 1)) * 0.5 - building.width * 2.5,
+            matrix.setPosition(-building.height * 5.05 + buildingMesh.position.x,
+                (y / winY) * (height - 20) - (height * 0.5 - 10) + buildingMesh.position.y,
+                (winZ === 0 ? 0.5 : z) * (building.width * 10 / Math.max(winZ, 1)) * 0.5 - building.width * 2.5 + buildingMesh.position.z,
             );
             idx++;
-            windowInstancedGeo.setMatrixAt(idx, matrix);
+            windowInstancedGeo.setMatrixAt(windowidx, matrix);
             const matrix2 = new THREE.Matrix4();
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
-            windowInstancedGeoGlow.setMatrixAt(idx, matrix);
+            windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowidx++;
         }
     }
-    windowInstancedGeo.renderOrder = 1;
-    windowInstancedGeoGlow.renderOrder = 2;
-    windowInstancedGeoGlow.visible = false;
-    buildingMesh.add(windowInstancedGeo);
-    buildingMesh.add(windowInstancedGeoGlow);
-    buildingGlowers.push(windowInstancedGeoGlow);
-    if (height > 100 && Math.random() < 0.5) {
+    //windowInstancedGeoGlow.renderOrder = 2;
+    //windowInstancedGeoGlow.visible = false;
+    //buildingMesh.add(windowInstancedGeo);
+    //buildingMesh.add(windowInstancedGeoGlow);
+    //buildingGlowers.push(windowInstancedGeoGlow);
+    if (building.spire) {
         let spireHeight = height * (0.2 + Math.random() * 0.2);
-        const spireGeometry = new THREE.BoxGeometry(2 + Math.random() * 1, spireHeight, 2 + Math.random() * 1);
-        const spire = new THREE.Mesh(spireGeometry, spireMaterial);
-        spire.position.y = height / 2 + spireHeight / 2 - 5;
-        spire.castShadow = true;
+        /* const spireGeometry = new THREE.BoxGeometry(2 + Math.random() * 1, spireHeight, 2 + Math.random() * 1);
+         const spire = new THREE.Mesh(spireGeometry, spireMaterial);
+         spire.position.y = height / 2 + spireHeight / 2 - 5;
+         spire.castShadow = true;*/
+        const spireMatrix = new THREE.Matrix4();
+        spireMatrix.setPosition(
+            buildingMesh.position.x,
+            buildingMesh.position.y + height / 2 + spireHeight / 2 - 5,
+            buildingMesh.position.z
+        );
+        const xScale = 2 + Math.random() * 1;
+        const zScale = 2 + Math.random() * 1;
+        spireMatrix.multiply(new THREE.Matrix4().makeScale(xScale, spireHeight, zScale));
+        instancedSpire.setMatrixAt(spireidx, spireMatrix);
+        const AOMatrix = new THREE.Matrix4();
+        AOMatrix.setPosition(buildingMesh.position.x,
+            buildingMesh.position.y + height / 2 + 0.05,
+            buildingMesh.position.z);
+        AOMatrix.multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+        AOMatrix.multiply(new THREE.Matrix4().makeScale(xScale * 1.3, zScale * 1.3, 1.0));
+        AOInstances.setMatrixAt(currAOIdx, AOMatrix);
+        currAOIdx++;
+        spireidx++;
         if (Math.random() < 0.25) {
             smokestacks.push({
                 position: new THREE.Vector3(buildingMesh.position.x, height + spireHeight, buildingMesh.position.z),
                 direction: new THREE.Vector3((0.1 + 0.1 * Math.random()) * Math.sign(Math.random() - 0.5), 0.05 - 0.1 * Math.random(), (0.1 + 0.1 * Math.random()) * Math.sign(Math.random() - 0.5))
             });
         }
-        buildingMesh.add(spire);
+        //buildingMesh.add(spire);
     }
     /*const AOGeo = new THREE.PlaneGeometry(1, 1);
     const AOMesh = new THREE.Mesh(AOGeo, AOMat);
@@ -592,8 +651,15 @@ cityData.buildings.forEach(building => {
     //buildingMesh.add(instancedAOSide);
     scene.add(buildingMesh);
 });
-console.log(smokestacks);
+BuildingMeshInstances.castShadow = true;
+instancedSpire.castShadow = true;
+windowInstancedGeo.renderOrder = 1;
+windowInstancedGeoGlow.renderOrder = 2;
 scene.add(AOSideInstances);
+scene.add(BuildingMeshInstances);
+scene.add(windowInstancedGeo);
+scene.add(windowInstancedGeoGlow);
+scene.add(instancedSpire);
 let cars = [];
 currAOIdx++;
 for (let i = 0; i < 100; i++) {
@@ -707,17 +773,6 @@ function animate() {
         sunLight.castShadow = true;
     }
     buildingGlowers.forEach(glower => {
-        if (cycleWeight > 0.5) {
-            //if (Math.random() < 0.0005 - 0.000003 * (buildingGlowers.filter(x => x.visible).length)) {
-            if (Math.random() < 0.01) {
-                glower.visible = true;
-            }
-            //}
-        } else {
-            if (Math.random() < 0.01) {
-                glower.visible = false;
-            }
-        }
         for (let i = 0; i < glower.count; i++) {
             glower.getMatrixAt(i, windowMat);
             windowScale.setFromMatrixScale(windowMat);
@@ -757,7 +812,7 @@ function animate() {
             });
         }
     });
-    smokeEmitter.update(delta, camera);
+    smokeEmitter.update(Math.min(delta, 100), camera);
     const sunset = (Math.exp(-Math.pow((cycleWeight - 0.5), 2.0)) - 0.779) * (1.0 / (1.0 - 0.779));
     sunLight.color.setRGB(1.0, 1.0 - sunset, 1.0 - sunset);
     cars.forEach(car => {
@@ -765,7 +820,8 @@ function animate() {
     });
     AOInstances.instanceMatrix.needsUpdate = true;
     //renderer.render(scene, camera);
-    composer.render()
+    composer.render();
+    //console.log(renderer.info.render.calls)
     stats.update();
 }
 animate();

@@ -329,7 +329,8 @@ const getNeighbors = (e) => {
         `${x},${z - 1}`
     ]
 }
-Car.findPath = (start, end, directionMap, cityMap) => {
+Car.findPath = (start, end, directionMap, cityMap, maxTime = 20) => {
+    const startTime = performance.now();
     const toExplore = [start.x + "," + start.z];
     const explored = [];
     const goal = end.x + "," + end.z;
@@ -341,6 +342,11 @@ Car.findPath = (start, end, directionMap, cityMap) => {
     const cameFrom = {};
     let goalReached = false;
     while (toExplore.length > 0) {
+        if ((performance.now() - startTime) > maxTime) {
+            return {
+                reached: false
+            }
+        }
         toExplore.sort((a, b) => {
             a = a.split(",");
             b = b.split(",");
