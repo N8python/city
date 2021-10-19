@@ -2,6 +2,7 @@ import * as THREE from './three/build/three.module.js';
 import { OrbitControls } from './orbit.js';
 import Emitter from "./emitter.js";
 import { Car } from "./car.js";
+import Robot from "./robot.js";
 import generateCityData from './city-gen.js';
 import { EffectComposer } from './three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from './three/examples/jsm/postprocessing/RenderPass.js';
@@ -10,8 +11,10 @@ import { FilmPass } from './three/examples/jsm/postprocessing/FilmPass.js';
 import { FXAAShader } from './three/examples/jsm/shaders/FXAAShader.js';
 import { UnrealBloomPass } from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from "./three/examples/jsm/loaders/FBXLoader.js";
 const texLoader = new THREE.TextureLoader();
-
+const fbxLoader = new FBXLoader();
+const gltfLoader = new GLTFLoader();
 const textures = {
     metalNormal: texLoader.load('./textures/metalnormalmap.jpeg'),
     roadTex: texLoader.load("./textures/roadtexture.png"),
@@ -31,10 +34,101 @@ const textures = {
     tire: texLoader.load("./textures/tire.png"),
     tireNormal: texLoader.load("./textures/normaltire.png"),
     tireMetal: texLoader.load("./textures/tiremetal.png"),
-    smokeTexture: texLoader.load("./textures/smoke.jpeg")
+    smokeTexture: texLoader.load("./textures/smoke.jpeg"),
+    footAO: texLoader.load("./textures/footao.png")
 }
-const modelLoader = new GLTFLoader();
-
+let robots = [];
+let robotInstance;
+const OpacityAOMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(1.0, 1.0, 1.0),
+    map: textures.footAO,
+    transparent: true,
+    side: THREE.DoubleSide,
+    blending: THREE.SubtractiveBlending
+});
+const robotAmbientShadows = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), OpacityAOMat, 2000);
+gltfLoader.load("robot.glb", async obj => {
+    const anims = {
+        idle: THREE.AnimationClip.parse(await (await fetch("animations/idle.json")).json()),
+        walk: THREE.AnimationClip.parse(await (await fetch("animations/walk.json")).json())
+    }
+    let instances = await new Promise((resolve, reject) => {
+        gltfLoader.load("facade.glb", obj => {
+            obj.scene.children[0].material.color.r *= 5.5;
+            obj.scene.children[0].material.color.g *= 5.5;
+            obj.scene.children[0].material.color.b *= 5.5;
+            obj.scene.children[0].material.envMap = textures.envMap;
+            obj.scene.children[0].material.normalMap = textures.buildingNormal;
+            obj.scene.children[0].material.metalness = 0.75;
+            obj.scene.children[0].material.roughness = 0.5;
+            obj.scene.children[0].material.needsUpdate = true;
+            const scaleRot = new THREE.Matrix4();
+            scaleRot.multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+            scaleRot.multiply(new THREE.Matrix4().makeScale(0.01, 0.01, 0.01));
+            obj.scene.children[0].geometry.applyMatrix4(scaleRot);
+            resolve(new THREE.InstancedMesh(obj.scene.children[0].geometry, obj.scene.children[0].material, 1000));
+        });
+    });
+    obj.scene.traverse((child) => {
+        if (child.isMesh) {
+            child.frustumCulled = false;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.material.envMap = textures.envMap;
+            if (child.material.metalness < 0.75) {
+                child.material.normalMap = textures.buildingNormal;
+            }
+            child.material.color.r *= 2.0;
+            child.material.color.g *= 2.0;
+            child.material.color.b *= 2.0;
+            child.material.needsUpdate = true;
+        }
+    });
+    const robotRaycaster = new THREE.Raycaster();
+    for (let i = 0; i < 1000; i++) {
+        let x;
+        let z;
+        while (true) {
+            x = 500 - 1000 * Math.random();
+            z = 500 - 1000 * Math.random();
+            if (Math.hypot(x, z) <= 500) {
+                let contained = false;
+                const ptVector = new THREE.Vector3(x, 1, z);
+                for (let i = 0; i < buildingBoxes.length; i++) {
+                    if (buildingBoxes[i].containsPoint(ptVector)) {
+                        contained = true;
+                        break;
+                    }
+                }
+                if (!contained) {
+                    break;
+                }
+            }
+        }
+        const robot = new Robot(obj, {
+            position: new THREE.Vector3(x, 0.0, z),
+            direction: 2 * Math.PI * Math.random(),
+            anims,
+            startState: "idle",
+            occludingBoxes: buildingBoxes,
+            camera,
+            raycaster: robotRaycaster,
+            lodInstances: instances,
+            instanceIdx: i,
+            ambientInstances: robotAmbientShadows,
+            ambientIdx: i * 2
+        }, scene);
+        robots.push(robot);
+    }
+    robotInstance = instances;
+    instances.castShadow = true;
+    instances.receiveShadow = true;
+    scene.add(instances);
+    scene.add(robotAmbientShadows);
+});
+/*gltfLoader.load("walk.glb", obj => {
+    console.log(JSON.stringify(obj.animations[0]));
+})*/
 textures.metalNormal.wrapS = THREE.RepeatWrapping;
 textures.metalNormal.wrapT = THREE.RepeatWrapping;
 textures.metalNormal.repeat.set(8, 8);
@@ -59,6 +153,8 @@ renderer.domElement.style.height = rHeight * scalingFactor + "px";
 renderer.domElement.style.imageRendering = "auto";
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+//renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.appendChild(renderer.domElement);
 const skyboxSize = 500;
 const geometry = new THREE.SphereGeometry(skyboxSize, 32, 32);
@@ -221,7 +317,7 @@ sunLight.shadow.camera.top = d;
 sunLight.shadow.camera.bottom = -d;
 sunLight.shadow.camera.near = 0.1;
 sunLight.shadow.camera.far = 1000;
-sunLight.shadow.bias = -0.0025;
+sunLight.shadow.bias = -0.001;
 sunLight.shadow.blurSamples = 8;
 sunLight.shadow.radius = 4;
 scene.add(sunLight.target);
@@ -443,6 +539,7 @@ const windowInstancedGeoGlow = new THREE.InstancedMesh(blueprintWindowGlow.geome
 const spireGeometry = new THREE.BoxGeometry(1, 1, 1);
 const instancedSpire = new THREE.InstancedMesh(spireGeometry, spireMaterial, spireAmt);
 let buildingGlowers = [windowInstancedGeoGlow];
+let buildingBoxes = [];
 let windowidx = 0;
 let buildingmeshidx = 0;
 let spireidx = 0;
@@ -474,6 +571,10 @@ cityData.buildings.forEach(building => {
     buildingMatrix.multiply(new THREE.Matrix4().makeScale(building.height * 10, height, building.width * 10));
     BuildingMeshInstances.setMatrixAt(buildingmeshidx, buildingMatrix);
     BuildingMeshInstances.setColorAt(buildingmeshidx, new THREE.Color(...color));
+    buildingBoxes.push(new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3((building.positionX + building.height * 0.5) * 10, height / 2, (building.positionZ + building.width * 0.5) * 10),
+        new THREE.Vector3(building.height * 10, height, building.width * 10)
+    ))
     buildingmeshidx++;
     const blueprintWindow = createWindow({ width: 5, height: 10, normal: textures.windowNormal, alpha: textures.windowAlpha, env: textures.envMap, metal: textures.windowMetal, color: new THREE.Color(...windowColor) });
     const blueprintWindowGlow = createWindowGlow({ width: 5, height: 10 });
@@ -651,8 +752,14 @@ cityData.buildings.forEach(building => {
     //buildingMesh.add(instancedAOSide);
     scene.add(buildingMesh);
 });
+/*buildingBoxes.forEach(box => {
+    const helper = new THREE.Box3Helper(box, 0xffffff);
+    scene.add(helper);
+})*/
 BuildingMeshInstances.castShadow = true;
+BuildingMeshInstances.receiveShadow = true;
 instancedSpire.castShadow = true;
+instancedSpire.receiveShadow = true;
 windowInstancedGeo.renderOrder = 1;
 windowInstancedGeoGlow.renderOrder = 2;
 scene.add(AOSideInstances);
@@ -699,6 +806,7 @@ for (let i = 0; i < 100; i++) {
     scene.add(testCar.mesh);
 }
 scene.add(AOInstances);
+//scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0 });
 const smokeMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     blending: THREE.NormalBlending,
@@ -739,7 +847,7 @@ const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 const fxaaPass = new ShaderPass(FXAAShader);
 const filmPass = new FilmPass(0.05, 0, 0, false);
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(rWidth, rHeight), 1.5, 0.4, 0.85);
+//const bloomPass = new UnrealBloomPass(new THREE.Vector2(rWidth, rHeight), 1.5, 0.4, 0.85);
 composer.addPass(renderPass);
 composer.addPass(fxaaPass);
 composer.addPass(filmPass);
@@ -771,6 +879,19 @@ function animate() {
         sunLight.castShadow = false;
     } else {
         sunLight.castShadow = true;
+    }
+    const frustum = new THREE.Frustum();
+    frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    buildingBoxes.sort((boxA, boxB) => {
+        return boxA.distanceToPoint(camera.position) - boxB.distanceToPoint(camera.position);
+    });
+    robots.forEach(robot => {
+        robot.update(delta, frustum, buildingBoxes);
+    });
+    if (robotInstance) {
+        robotInstance.instanceMatrix.needsUpdate = true;
+        robotAmbientShadows.instanceMatrix.needsUpdate = true;
+        robotAmbientShadows.instanceColor.needsUpdate = true;
     }
     buildingGlowers.forEach(glower => {
         for (let i = 0; i < glower.count; i++) {
@@ -812,7 +933,9 @@ function animate() {
             });
         }
     });
+    //console.time();
     smokeEmitter.update(Math.min(delta, 100), camera);
+    //console.timeEnd();
     const sunset = (Math.exp(-Math.pow((cycleWeight - 0.5), 2.0)) - 0.779) * (1.0 / (1.0 - 0.779));
     sunLight.color.setRGB(1.0, 1.0 - sunset, 1.0 - sunset);
     cars.forEach(car => {
