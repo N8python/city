@@ -222,9 +222,7 @@ float fbm(vec3 x) {
 	}
 	return v;
 }  
-float cloud_noise(vec3 x) {
-    //x *= 1.25;
-    //return 0.75 * noise(x / 2.0) + 0.25 + 0.25 * noise(x) - 0.5 * fbm(x + 1000.0);
+float cloud_noise(vec3 x, vec3 pos) {
     return fbm(x);
 }
     void main() {
@@ -261,7 +259,7 @@ float cloud_noise(vec3 x) {
         vec3 cloudSamplePoint = vec3(pos.x + cloudTime, pos.y, pos.z + cloudTime) * 5.0;
         const float EPSILON = 0.5;
         vec4 sunCol = vec4(0.0, 0.4 + 0.2 * length(pos.xz), 1.0, 1.0);
-        float skyNoise = cloud_noise(cloudSamplePoint) * max((1.0 - pow(abs(pos.y), 5.0)), 0.9);
+        float skyNoise = cloud_noise(cloudSamplePoint, pos) * max((1.0 - pow(abs(pos.y), 5.0)), 0.9);
         float sunDist = length(sunPos - pos);
         if (sunDist < 0.4) {
             float sunPower = max(min(pow((0.3 - (sunDist - 0.1)) / 0.3, 1.0), 1.0), 0.0);
@@ -270,9 +268,9 @@ float cloud_noise(vec3 x) {
         if (skyNoise > 0.4) {
             float cloudColor = 1.0;
             vec3 cloudNormal = vec3(
-                cloud_noise(cloudSamplePoint + vec3(EPSILON, 0.0, 0.0)) - cloud_noise(cloudSamplePoint - vec3(EPSILON, 0.0, 0.0)),
-                cloud_noise(cloudSamplePoint + vec3(0.0, EPSILON, 0.0)) - cloud_noise(cloudSamplePoint - vec3(0.0, EPSILON, 0.0)),
-                cloud_noise(cloudSamplePoint + vec3(0.0, 0.0,EPSILON)) - cloud_noise(cloudSamplePoint - vec3(0.0, 0.0, EPSILON))
+                cloud_noise(cloudSamplePoint + vec3(EPSILON, 0.0, 0.0), pos) - cloud_noise(cloudSamplePoint - vec3(EPSILON, 0.0, 0.0), pos),
+                cloud_noise(cloudSamplePoint + vec3(0.0, EPSILON, 0.0), pos) - cloud_noise(cloudSamplePoint - vec3(0.0, EPSILON, 0.0), pos),
+                cloud_noise(cloudSamplePoint + vec3(0.0, 0.0,EPSILON), pos) - cloud_noise(cloudSamplePoint - vec3(0.0, 0.0, EPSILON), pos)
             );
             sunCol = mix(sunCol, vec4(1.0, 1.0, 1.0, 1.0) * cloudColor * (0.2 + 0.8 * ((dot(dirToLight, cloudNormal) + 1.0) / 2.0)), min((skyNoise - 0.4) / 0.2, 1.0));
             moonCol =  mix(moonCol, vec4(1.0, 1.0, 1.0, 1.0) * cloudColor * (0.2 + 0.8 * ((dot(dirToMoon, cloudNormal) + 1.0) / 2.0)), min((skyNoise - 0.4) / 0.2, 1.0) * 0.1);
