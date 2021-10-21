@@ -810,6 +810,7 @@ const smokeMaterial = new THREE.MeshBasicMaterial({
     blending: THREE.NormalBlending,
     side: THREE.DoubleSide,
     transparent: true,
+    opacity: 0.25,
     alphaMap: textures.smokeTexture,
     depthTest: true,
     depthWrite: false,
