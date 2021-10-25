@@ -1,17 +1,55 @@
 import * as THREE from './three/build/three.module.js';
-import { OrbitControls } from './orbit.js';
+import {
+    OrbitControls
+} from './three/examples/jsm/controls/OrbitControls.js';
 import Emitter from "./emitter.js";
-import { Car } from "./car.js";
+import {
+    Car
+} from "./car.js";
 import Robot from "./robot.js";
 import generateCityData from './city-gen.js';
-import { EffectComposer } from './three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from './three/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass } from './three/examples/jsm/postprocessing/ShaderPass.js';
-import { FilmPass } from './three/examples/jsm/postprocessing/FilmPass.js';
-import { FXAAShader } from './three/examples/jsm/shaders/FXAAShader.js';
-import { UnrealBloomPass } from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js';
-import { FBXLoader } from "./three/examples/jsm/loaders/FBXLoader.js";
+import {
+    EffectComposer
+} from './three/examples/jsm/postprocessing/EffectComposer.js';
+import {
+    RenderPass
+} from './three/examples/jsm/postprocessing/RenderPass.js';
+import {
+    ShaderPass
+} from './three/examples/jsm/postprocessing/ShaderPass.js';
+import {
+    FilmPass
+} from './three/examples/jsm/postprocessing/FilmPass.js';
+import {
+    FXAAShader
+} from './three/examples/jsm/shaders/FXAAShader.js';
+import {
+    UnrealBloomPass
+} from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import {
+    HorizontalBlurShader
+} from './three/examples/jsm/shaders/HorizontalBlurShader.js';
+import {
+    VerticalBlurShader
+} from './three/examples/jsm/shaders/VerticalBlurShader.js';
+import {
+    BloomShader
+} from "./BloomShader.js";
+import {
+    BoxBlurShader
+} from "./BoxBlurShader.js";
+import {
+    BloomAddShader
+} from './BloomAddShader.js';
+import {
+    ContactShadows
+} from './ContactShadows.js';
+import {
+    GLTFLoader
+} from './three/examples/jsm/loaders/GLTFLoader.js';
+import {
+    FBXLoader
+} from "./three/examples/jsm/loaders/FBXLoader.js";
 const texLoader = new THREE.TextureLoader();
 const fbxLoader = new FBXLoader();
 const gltfLoader = new GLTFLoader();
@@ -160,7 +198,9 @@ const skyboxSize = 500;
 const geometry = new THREE.SphereGeometry(skyboxSize, 32, 32);
 const material = new THREE.ShaderMaterial({
     uniforms: {
-        time: { value: 0.0 },
+        time: {
+            value: 0.0
+        },
         logDepthBufferFC: {
             value: 2.0 / (Math.log(camera.far + 1) / Math.LN2)
         },
@@ -299,7 +339,11 @@ float cloud_noise(vec3 x, vec3 pos) {
 const skybox = new THREE.Mesh(geometry, material);
 scene.add(skybox);
 const groundGeo = new THREE.BoxGeometry(1000, 500, 1000);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x999999, side: THREE.DoubleSide, normalMap: textures.metalNormal });
+const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x999999,
+    side: THREE.DoubleSide,
+    normalMap: textures.metalNormal
+});
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
 groundMesh.receiveShadow = true;
 const sunLight = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -354,7 +398,9 @@ scene.add(ambientLight);
 groundMesh.position.y = -250;
 scene.add(groundMesh);
 const testSphere = new THREE.SphereGeometry(10, 32, 32);
-const testMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+const testMaterial = new THREE.MeshPhongMaterial({
+    color: 0x0000ff
+});
 const testMesh = new THREE.Mesh(testSphere, testMaterial);
 testMesh.position.y = 25;
 testMesh.castShadow = true;
@@ -428,7 +474,17 @@ const createWindow = ({
     color
 }) => {
     const geometry = new THREE.PlaneGeometry(width, height);
-    const windowMat = new THREE.MeshStandardMaterial({ color, normalMap: normal, alphaMap: alpha, metalnessMap: metal, transparent: true, side: THREE.DoubleSide, envMap: env, metalness: 1.0, roughness: 0.175 });
+    const windowMat = new THREE.MeshStandardMaterial({
+        color,
+        normalMap: normal,
+        alphaMap: alpha,
+        metalnessMap: metal,
+        transparent: true,
+        side: THREE.DoubleSide,
+        envMap: env,
+        metalness: 1.0,
+        roughness: 0.175
+    });
     const window = new THREE.Mesh(geometry, windowMat);
     return window;
 }
@@ -437,7 +493,13 @@ const createWindowGlow = ({
         height,
     }) => {
         const geometry = new THREE.PlaneGeometry(width, height);
-        const windowMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(4.0, 4.0, 0.0), transparent: true, side: THREE.DoubleSide, map: textures.windowGlow, blending: THREE.AdditiveBlending });
+        const windowMat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(4.0, 4.0, 0.0),
+            transparent: true,
+            side: THREE.DoubleSide,
+            map: textures.windowGlow,
+            blending: THREE.AdditiveBlending
+        });
         const window = new THREE.Mesh(geometry, windowMat);
         return window;
     }
@@ -530,10 +592,28 @@ cityData.buildings.forEach(building => {
         spireAmt++;
     }
 });
-const blueprintWindow = createWindow({ width: 5, height: 10, normal: textures.windowNormal, alpha: textures.windowAlpha, env: textures.envMap, metal: textures.windowMetal, color: [1.0, 1.0, 1.0] });
-const blueprintWindowGlow = createWindowGlow({ width: 5, height: 10 });
+const blueprintWindow = createWindow({
+    width: 5,
+    height: 10,
+    normal: textures.windowNormal,
+    alpha: textures.windowAlpha,
+    env: textures.envMap,
+    metal: textures.windowMetal,
+    color: [1.0, 1.0, 1.0]
+});
+const blueprintWindowGlow = createWindowGlow({
+    width: 5,
+    height: 10
+});
 const windowInstancedGeo = new THREE.InstancedMesh(blueprintWindow.geometry, blueprintWindow.material, windowsAmt);
 const windowInstancedGeoGlow = new THREE.InstancedMesh(blueprintWindowGlow.geometry, blueprintWindowGlow.material, windowsAmt);
+const windowInstancedGeoGlow2 = new THREE.InstancedMesh(blueprintWindowGlow.geometry, new THREE.MeshStandardMaterial({
+    color: new THREE.Color(4.0, 4.0, 0.0),
+    transparent: true,
+    side: THREE.DoubleSide,
+    map: textures.windowGlow,
+    blending: THREE.NormalBlending
+}), windowsAmt);
 const spireGeometry = new THREE.BoxGeometry(1, 1, 1);
 const instancedSpire = new THREE.InstancedMesh(spireGeometry, spireMaterial, spireAmt);
 let buildingGlowers = [windowInstancedGeoGlow];
@@ -574,8 +654,19 @@ cityData.buildings.forEach(building => {
         new THREE.Vector3(building.height * 10, height, building.width * 10)
     ))
     buildingmeshidx++;
-    const blueprintWindow = createWindow({ width: 5, height: 10, normal: textures.windowNormal, alpha: textures.windowAlpha, env: textures.envMap, metal: textures.windowMetal, color: new THREE.Color(...windowColor) });
-    const blueprintWindowGlow = createWindowGlow({ width: 5, height: 10 });
+    const blueprintWindow = createWindow({
+        width: 5,
+        height: 10,
+        normal: textures.windowNormal,
+        alpha: textures.windowAlpha,
+        env: textures.envMap,
+        metal: textures.windowMetal,
+        color: new THREE.Color(...windowColor)
+    });
+    const blueprintWindowGlow = createWindowGlow({
+        width: 5,
+        height: 10
+    });
     let winX = building.height - 1;
     if (winX < 1) {
         winX = 0;
@@ -602,6 +693,7 @@ cityData.buildings.forEach(building => {
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
             windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowInstancedGeoGlow2.setMatrixAt(windowidx, matrix);
             windowidx++;
         }
     }
@@ -618,6 +710,7 @@ cityData.buildings.forEach(building => {
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
             windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowInstancedGeoGlow2.setMatrixAt(windowidx, matrix);
             windowidx++;
         }
     }
@@ -636,6 +729,7 @@ cityData.buildings.forEach(building => {
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
             windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowInstancedGeoGlow2.setMatrixAt(windowidx, matrix);
             windowidx++;
         }
     }
@@ -653,6 +747,7 @@ cityData.buildings.forEach(building => {
             matrix2.makeScale(0.0001, 1.0, 0.0001);
             matrix.multiply(matrix2);
             windowInstancedGeoGlow.setMatrixAt(windowidx, matrix);
+            windowInstancedGeoGlow2.setMatrixAt(windowidx, matrix);
             windowidx++;
         }
     }
@@ -837,25 +932,52 @@ controls.dampingFactor = 0.05;
 controls.screenSpacePanning = true;
 camera.position.z = -5.0;
 camera.position.y = 0.0;
-//camera.lookAt(0.0, 0.0, 0.0);
-//controls.update();
 const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
-const composer = new EffectComposer(renderer);
+const bloomScene = new THREE.Scene();
+bloomScene.add(new THREE.AmbientLight(0xffffff, 0.75));
+bloomScene.add(windowInstancedGeoGlow2);
+//bloomScene.add(skybox);
+//bloomScene.add(groundMesh);
+//bloomScene.add(moonLight);
+//bloomScene.add(sunLight);
+/*const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 const fxaaPass = new ShaderPass(FXAAShader);
 const filmPass = new FilmPass(0.05, 0, 0, false);
-//const bloomPass = new UnrealBloomPass(new THREE.Vector2(rWidth, rHeight), 1.5, 0.4, 0.85);
 composer.addPass(renderPass);
 composer.addPass(fxaaPass);
+composer.addPass(filmPass);*/
+const composer = new EffectComposer(renderer);
+const bloomPass = new ShaderPass(BloomShader);
+const boxBlur = new ShaderPass(BoxBlurShader);
+const bloomAddPass = new ShaderPass(BloomAddShader);
+const fxaaPass = new ShaderPass(FXAAShader);
+const shadowPass = new ShaderPass(ContactShadows);
+const filmPass = new FilmPass(0.05, 0, 0, false);
+composer.addPass(bloomPass);
+composer.addPass(boxBlur);
+composer.addPass(bloomAddPass);
+composer.addPass(fxaaPass);
 composer.addPass(filmPass);
-//composer.addPass(bloomPass);
+composer.addPass(shadowPass);
+const defaultTexture = new THREE.WebGLRenderTarget(rWidth, rHeight, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.NearestFilter
+});
+defaultTexture.depthTexture = new THREE.DepthTexture();
+const bloomTexture = new THREE.WebGLRenderTarget(rWidth, rHeight, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.NearestFilter
+});
+bloomTexture.depthTexture = new THREE.DepthTexture();
 const onMat = new THREE.Matrix4().makeScale(10000, 1, 10000);
 const offMat = new THREE.Matrix4().makeScale(0.0001, 1, 0.0001);
 const windowMat = new THREE.Matrix4();
 const windowScale = new THREE.Vector3();
 let lastUpdate = performance.now();
+let bloomAmt = 0.5;
 
 function animate() {
     requestAnimationFrame(animate);
@@ -906,8 +1028,10 @@ function animate() {
                 }
             }
             glower.setMatrixAt(i, windowMat);
+            windowInstancedGeoGlow2.setMatrixAt(i, windowMat)
         }
         glower.instanceMatrix.needsUpdate = true;
+        windowInstancedGeoGlow2.instanceMatrix.needsUpdate = true;
     });
     smokestacks.forEach(smokestack => {
         for (let i = 0; i < 3; i++) {
@@ -942,8 +1066,36 @@ function animate() {
     });
     AOInstances.instanceMatrix.needsUpdate = true;
     //renderer.render(scene, camera);
+    renderer.setRenderTarget(defaultTexture);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(bloomTexture);
+    renderer.clear();
+    renderer.render(bloomScene, camera);
+    bloomPass.uniforms["sceneDiffuse"].value = defaultTexture.texture;
+    bloomPass.uniforms["bloomDiffuse"].value = bloomTexture.texture;
+    bloomPass.uniforms["sceneDepth"].value = defaultTexture.depthTexture;
+    bloomPass.uniforms["bloomDepth"].value = bloomTexture.depthTexture;
+    bloomAddPass.uniforms["sceneDiffuse"].value = defaultTexture.texture;
+    bloomAddPass.uniforms["bloomAmt"].value = bloomAmt;
+    shadowPass.uniforms["tDepth"].value = defaultTexture.depthTexture;
+    shadowPass.uniforms["inverseProjection"].value = camera.projectionMatrixInverse;
+    shadowPass.uniforms["inverseView"].value = camera.matrixWorld;
+    shadowPass.uniforms["size"].value = new THREE.Vector2(rWidth, rHeight);
+    boxBlur.uniforms['resolution'].value = new THREE.Vector2(rWidth, rHeight);
+    renderer.setRenderTarget(null);
+    renderer.clear();
     composer.render();
     //console.log(renderer.info.render.calls)
     stats.update();
+}
+document.onkeydown = (e) => {
+    if (e.key === "n") {
+        bloomAmt -= 0.05;
+    }
+    if (e.key === "b") {
+        bloomAmt += 0.05;
+    }
+    bloomAmt = Math.min(Math.max(bloomAmt, 0), 1);
 }
 animate();
