@@ -966,9 +966,9 @@ const filmPass = new FilmPass(0.05, 0, 0, false);
 composer.addPass(bloomPass);
 composer.addPass(boxBlur);
 composer.addPass(bloomAddPass);
+composer.addPass(defferedLighting);
 composer.addPass(fxaaPass);
 composer.addPass(filmPass);
-composer.addPass(defferedLighting);
 const defaultTexture = new THREE.WebGLRenderTarget(rWidth, rHeight, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.NearestFilter
@@ -1099,14 +1099,15 @@ function animate() {
     defferedLighting.uniforms["cameraPos"].value = camera.position;
     defferedLighting.uniforms["size"].value = new THREE.Vector2(rWidth, rHeight);
     lights.forEach((light, i) => {
+        const timeScale = Math.min((delta / 16.66), 6);
         if (!light.xVel || !light.zVel) {
             light.xVel = Math.random() * 10 - 5;
             light.zVel = Math.random() * 10 - 5;
         }
-        light.xVel += (Math.random() - 0.5) * 0.125;
-        light.zVel += (Math.random() - 0.5) * 0.125;
-        light.position.x += light.xVel * Math.sin(performance.now() / 200);
-        light.position.z += light.zVel * Math.cos(performance.now() / 200);
+        light.xVel += (Math.random() - 0.5) * 0.125 * timeScale;
+        light.zVel += (Math.random() - 0.5) * 0.125 * timeScale;
+        light.position.x += light.xVel * Math.sin(performance.now() / 200) * timeScale;
+        light.position.z += light.zVel * Math.cos(performance.now() / 200) * timeScale;
     })
     const lightData = new Float32Array(3 * 3 * lights.length);
     for (let i = 0; i < lights.length; i++) {
