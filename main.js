@@ -85,6 +85,8 @@ const OpacityAOMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(1.0, 1.0, 1.0),
     map: textures.footAO,
     transparent: true,
+    depthTest: true,
+    depthWrite: false,
     side: THREE.DoubleSide,
     blending: THREE.SubtractiveBlending
 });
@@ -552,6 +554,8 @@ const SideAOMat = new THREE.MeshStandardMaterial({
     alphaMap: textures.buildingAOSide,
     transparent: true,
     side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: false,
     opacity: 0.4
 });
 const TrueAOMat = new THREE.MeshStandardMaterial({
@@ -559,6 +563,8 @@ const TrueAOMat = new THREE.MeshStandardMaterial({
     alphaMap: textures.carAO,
     transparent: true,
     side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: false,
     opacity: 0.4
 });
 const spireMaterial = new THREE.MeshStandardMaterial({

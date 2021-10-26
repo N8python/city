@@ -57,7 +57,38 @@ var DefferedLighting = {
     vec3 downPos = _ScreenToWorld(vec3(downUv, texture2D(tDepth, downUv).x));
     vec2 rightUv = vUv + vec2(1.0 / size.x, 0.0);;
     vec3 rightPos = _ScreenToWorld(vec3(rightUv, texture2D(tDepth, rightUv).x));
-    return normalize(cross(rightPos - worldPos, downPos - worldPos));
+    vec2 upUv = vUv - vec2(0.0, 1.0 / size.y);
+    vec3 upPos = _ScreenToWorld(vec3(upUv, texture2D(tDepth, upUv).x));
+    vec2 leftUv = vUv - vec2(1.0 / size.x, 0.0);;
+    vec3 leftPos = _ScreenToWorld(vec3(leftUv, texture2D(tDepth, leftUv).x));
+    int hChoice;
+    int vChoice;
+    if (length(leftPos - worldPos) < length(rightPos - worldPos)) {
+      hChoice = 0;
+    } else {
+      hChoice = 1;
+    }
+    if (length(upPos - worldPos) < length(downPos - worldPos)) {
+      vChoice = 0;
+    } else {
+      vChoice = 1;
+    }
+    vec3 hVec;
+    vec3 vVec;
+    if (hChoice == 0 && vChoice == 0) {
+      hVec = leftPos - worldPos;
+      vVec = upPos - worldPos;
+    } else if (hChoice == 0 && vChoice == 1) {
+      hVec = leftPos - worldPos;
+      vVec = worldPos - downPos;
+    } else if (hChoice == 1 && vChoice == 1) {
+      hVec = rightPos - worldPos;
+      vVec = downPos - worldPos;
+    } else if (hChoice == 1 && vChoice == 0) {
+      hVec = rightPos - worldPos;
+      vVec = worldPos - upPos;
+    }
+    return normalize(cross(hVec, vVec));
   }
 		void main() {
 			vec4 texel = texture2D( tDiffuse, vUv );
