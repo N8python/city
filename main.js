@@ -42,14 +42,17 @@ import {
     BloomAddShader
 } from './BloomAddShader.js';
 import {
-    ContactShadows
-} from './ContactShadows.js';
+    DefferedLighting
+} from './DefferedLighting.js';
 import {
     GLTFLoader
 } from './three/examples/jsm/loaders/GLTFLoader.js';
 import {
     FBXLoader
 } from "./three/examples/jsm/loaders/FBXLoader.js";
+import {
+    SimplexNoise
+} from "./three/examples/jsm/math/SimplexNoise.js";
 const texLoader = new THREE.TextureLoader();
 const fbxLoader = new FBXLoader();
 const gltfLoader = new GLTFLoader();
@@ -75,6 +78,7 @@ const textures = {
     smokeTexture: texLoader.load("./textures/smoke.jpeg"),
     footAO: texLoader.load("./textures/footao.png")
 }
+let noise = new SimplexNoise();
 let robots = [];
 let robotInstance;
 const OpacityAOMat = new THREE.MeshStandardMaterial({
@@ -860,6 +864,9 @@ scene.add(BuildingMeshInstances);
 scene.add(windowInstancedGeo);
 scene.add(windowInstancedGeoGlow);
 scene.add(instancedSpire);
+/*const light = new THREE.PointLight(0xff00ff, 1, 50);
+light.position.set(0, 10, 0);
+scene.add(light);*/
 let cars = [];
 currAOIdx++;
 for (let i = 0; i < 100; i++) {
@@ -954,14 +961,14 @@ const bloomPass = new ShaderPass(BloomShader);
 const boxBlur = new ShaderPass(BoxBlurShader);
 const bloomAddPass = new ShaderPass(BloomAddShader);
 const fxaaPass = new ShaderPass(FXAAShader);
-const shadowPass = new ShaderPass(ContactShadows);
+const defferedLighting = new ShaderPass(DefferedLighting);
 const filmPass = new FilmPass(0.05, 0, 0, false);
 composer.addPass(bloomPass);
 composer.addPass(boxBlur);
 composer.addPass(bloomAddPass);
 composer.addPass(fxaaPass);
 composer.addPass(filmPass);
-composer.addPass(shadowPass);
+composer.addPass(defferedLighting);
 const defaultTexture = new THREE.WebGLRenderTarget(rWidth, rHeight, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.NearestFilter
@@ -978,6 +985,13 @@ const windowMat = new THREE.Matrix4();
 const windowScale = new THREE.Vector3();
 let lastUpdate = performance.now();
 let bloomAmt = 0.5;
+const lights = [
+    /* { position: new THREE.Vector3(0, 10, 0), color: new THREE.Color(1, 0, 1), intensity: 1, range: 50, enabled: 1 },
+      { position: new THREE.Vector3(30, 10, 30), color: new THREE.Color(0, 1, 0), intensity: 1, range: 50, enabled: 1 },
+      { position: new THREE.Vector3(-30, 10, 30), color: new THREE.Color(1, 0, 0), intensity: 1, range: 50, enabled: 1 },
+      { position: new THREE.Vector3(-30, 10, -30), color: new THREE.Color(0, 0, 1), intensity: 1, range: 50, enabled: 1 },
+      { position: new THREE.Vector3(30, 10, -30), color: new THREE.Color(0, 1, 1), intensity: 1, range: 50, enabled: 1 }*/
+]
 
 function animate() {
     requestAnimationFrame(animate);
@@ -1078,10 +1092,39 @@ function animate() {
     bloomPass.uniforms["bloomDepth"].value = bloomTexture.depthTexture;
     bloomAddPass.uniforms["sceneDiffuse"].value = defaultTexture.texture;
     bloomAddPass.uniforms["bloomAmt"].value = bloomAmt;
-    shadowPass.uniforms["tDepth"].value = defaultTexture.depthTexture;
-    shadowPass.uniforms["inverseProjection"].value = camera.projectionMatrixInverse;
-    shadowPass.uniforms["inverseView"].value = camera.matrixWorld;
-    shadowPass.uniforms["size"].value = new THREE.Vector2(rWidth, rHeight);
+    defferedLighting.uniforms["tDepth"].value = defaultTexture.depthTexture;
+    camera.updateMatrixWorld();
+    defferedLighting.uniforms["inverseProjection"].value = camera.projectionMatrixInverse;
+    defferedLighting.uniforms["inverseView"].value = camera.matrixWorld;
+    defferedLighting.uniforms["cameraPos"].value = camera.position;
+    defferedLighting.uniforms["size"].value = new THREE.Vector2(rWidth, rHeight);
+    lights.forEach((light, i) => {
+        if (!light.xVel || !light.zVel) {
+            light.xVel = Math.random() * 10 - 5;
+            light.zVel = Math.random() * 10 - 5;
+        }
+        light.xVel += (Math.random() - 0.5) * 0.125;
+        light.zVel += (Math.random() - 0.5) * 0.125;
+        light.position.x += light.xVel * Math.sin(performance.now() / 200);
+        light.position.z += light.zVel * Math.cos(performance.now() / 200);
+    })
+    const lightData = new Float32Array(3 * 3 * lights.length);
+    for (let i = 0; i < lights.length; i++) {
+        const accessIdx = 9 * i;
+        lightData[accessIdx] = lights[i].position.x;
+        lightData[accessIdx + 1] = lights[i].position.y;
+        lightData[accessIdx + 2] = lights[i].position.z;
+        lightData[accessIdx + 3] = lights[i].color.r;
+        lightData[accessIdx + 4] = lights[i].color.g;
+        lightData[accessIdx + 5] = lights[i].color.b;
+        lightData[accessIdx + 6] = lights[i].intensity;
+        lightData[accessIdx + 7] = lights[i].range;
+        lightData[accessIdx + 8] = lights[i].enabled;
+    }
+    const lightTexture = new THREE.DataTexture(lightData, 3, lights.length, THREE.RGBFormat);
+    lightTexture.type = THREE.FloatType;
+    defferedLighting.uniforms["lightTexture"].value = lightTexture;
+    defferedLighting.uniforms["lightAmount"].value = lights.length;
     boxBlur.uniforms['resolution'].value = new THREE.Vector2(rWidth, rHeight);
     renderer.setRenderTarget(null);
     renderer.clear();
@@ -1095,6 +1138,17 @@ document.onkeydown = (e) => {
     }
     if (e.key === "b") {
         bloomAmt += 0.05;
+    }
+    if (e.key === "d") {
+        if (lights.length === 0) {
+            for (let i = 0; i < 200; i++) {
+                const randomAngle = Math.random() * Math.PI * 2;
+                const randomRadius = 500 * Math.sqrt(Math.random());
+                lights.push({ position: new THREE.Vector3(randomRadius * Math.sin(randomAngle), Math.random() * 50 + 1, randomRadius * Math.cos(randomAngle)), color: new THREE.Color(Math.random(), Math.random(), Math.random()), intensity: 0.5 + 0.5 * Math.random(), range: 20 + 80 * Math.random(), enabled: 1 })
+            }
+        } else {
+            lights.length = 0;
+        }
     }
     bloomAmt = Math.min(Math.max(bloomAmt, 0), 1);
 }
