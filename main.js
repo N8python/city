@@ -943,8 +943,9 @@ controls.maxDistance = 450;
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.screenSpacePanning = true;
-camera.position.z = -5.0;
-camera.position.y = 0.0;
+/*camera.position.z = -5.0;
+camera.position.y = 0.0;*/
+camera.position.set(250, 300, 250);
 const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
