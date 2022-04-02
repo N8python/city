@@ -27,6 +27,9 @@ import {
     UnrealBloomPass
 } from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import {
+    SMAAPass
+} from './three/examples/jsm/postprocessing/SMAAPass.js';
+import {
     HorizontalBlurShader
 } from './three/examples/jsm/shaders/HorizontalBlurShader.js';
 import {
@@ -967,15 +970,15 @@ const composer = new EffectComposer(renderer);
 const bloomPass = new ShaderPass(BloomShader);
 const boxBlur = new ShaderPass(BoxBlurShader);
 const bloomAddPass = new ShaderPass(BloomAddShader);
-const fxaaPass = new ShaderPass(FXAAShader);
+const smaaPass = new SMAAPass(rWidth, rHeight);
 const defferedLighting = new ShaderPass(DefferedLighting);
 const filmPass = new FilmPass(0.05, 0, 0, false);
 composer.addPass(bloomPass);
 composer.addPass(boxBlur);
 composer.addPass(bloomAddPass);
 composer.addPass(defferedLighting);
-composer.addPass(fxaaPass);
 composer.addPass(filmPass);
+composer.addPass(smaaPass);
 const defaultTexture = new THREE.WebGLRenderTarget(rWidth, rHeight, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.NearestFilter
