@@ -1021,7 +1021,7 @@ function animate() {
     const cycleWeight = (Math.atan(8.0 * Math.sin(material.uniforms.time.value * 0.1 - 3.1415926535 / 2.0)) / Math.atan(8.0) + 1.0) / 2.0;
     sunLight.intensity = 0.5 * (1 - cycleWeight ** 2);
     moonLight.intensity = 0.2 * (cycleWeight ** 2);
-    if (sunLight.intensity < 0.1) {
+    if (sunLight.intensity < 0.05) {
         sunLight.intensity = 0;
         sunLight.castShadow = false;
     } else {
