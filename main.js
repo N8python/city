@@ -272,12 +272,7 @@ float fbm(vec3 x) {
 	return v;
 }  
 float cloud_noise(vec3 x, vec3 pos) {
-    vec3 dir = normalize(pos);
-    float t = 1.0 / dir.y; 
-    if (t < 0.0) {
-        return 0.0;
-    }
-    return fbm(vec3(t * dir.x, t * dir.y, t * dir.z));
+    return fbm(x);
 }
     void main() {
         float daynightCycleTime = time * 0.1;
