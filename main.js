@@ -355,6 +355,7 @@ const groundMat = new THREE.MeshStandardMaterial({
 });
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
 groundMesh.receiveShadow = true;
+groundMesh.castShadow = true;
 const sunLight = new THREE.DirectionalLight(0xffffff, 0.5);
 sunLight.color.setRGB(1.0, 1.0, 1.0);
 scene.add(sunLight);
