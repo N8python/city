@@ -272,7 +272,12 @@ float fbm(vec3 x) {
 	return v;
 }  
 float cloud_noise(vec3 x, vec3 pos) {
-    return fbm(x);
+    vec3 dir = normalize(pos);
+    float t = 1.0 / dir.y; 
+    if (t < 0.0) {
+        return 0.0;
+    }
+    return fbm(vec3(t * dir.x, t * dir.y, t * dir.z));
 }
     void main() {
         float daynightCycleTime = time * 0.1;
@@ -1022,6 +1027,7 @@ function animate() {
     sunLight.intensity = 0.5 * (1 - cycleWeight ** 2);
     moonLight.intensity = 0.2 * (cycleWeight ** 2);
     if (sunLight.intensity < 0.1) {
+        sunLight.intensity = 0;
         sunLight.castShadow = false;
     } else {
         sunLight.castShadow = true;
